@@ -1,0 +1,98 @@
+Mapeamento dos campos clear sale vs interface
+Req?|Campos do ClearSale| Campos interface
+===========ORDER:
+ req|ID: pedido_id      |pedido_id
+ req|Date: data         |data                 yyyy-mm-ddThh:mm:ss
+ req|Email:             |buyer->email
+ opt|B2B_B2C            |business_type
+ opt|ShippingPrice      |shipping_price
+ req|TotalItens         |total_items
+ req|TotalOrder         |total
+ opt|QtyInstallments    |parcelas
+ opt|DeliveryTimeCD     |delivery_time
+ opt|QtyItems           |qty_items
+ opt|QtyPaymentTypes    |qty_payment_types
+ opt|IP                 |buyer->ip
+ opt|GiftMessage        |gift_message
+ opt|Obs                |observations
+ may|Status             |status
+ opt|Reanalise          |reanalise
+ opt|Origin             |origin
+ opt|ReservationDate    |NOT IMPLEMENTED         * para empresas aereas
+ opt|Country            |NOT IMPLEMENTED         * para pedido internacional
+ opt|Nationality        |NOT IMPLEMENTED         * para pedido internacional
+ opt|Product            |NOT IMPLEMENTED         * para pedido internacional
+
+
+========Cobranca:
+ req|ID                 |billing.client_id
+ req|Type               |billing.person_type
+ req|LegalDocument1     |billing.document_id
+ req|Name               |billing.name
+ req|Address.Street     |billing.address_street
+ req|Address.Number     |billing.address_number
+ req|Address.County     |billing.address_district
+ req|Address.City       |billing.address_city
+ req|Address.State      |billing.address_state
+ req|Address.ZipCode    |billing.address_zip_code
+ req|Phones.Phone.Type  |billing.phone_type
+ req|Phones.Phone.DDD   |billing.phone_prefix
+ req|Phones.Phone.Number|billing.phone       
+ opt|LegalDocument2     |billing.rg_ie
+ opt|BirthDate          |billing.birthdate
+ opt|Email              |billing.email
+ opt|Genre              |billing.genre
+ opt|Address.Comp       |billing.address_complement
+ opt|Address.Country    |billing.address_country
+ opt|Address.Reference  |billing.address_reference
+ opt|Phones.Phone.DDI   |billing.phone_ddi
+
+========Entrega:
+ req|ID                 |shipping.client_id
+ req|Type               |shipping.person_type
+ req|LegalDocument1     |shipping.document_id
+ req|Name               |shipping.name
+ req|Address.Street     |shipping.address_street
+ req|Address.Number     |shipping.address_number
+ req|Address.County     |shipping.address_district
+ req|Address.City       |shipping.address_city
+ req|Address.State      |shipping.address_state
+ req|Address.ZipCode    |shipping.address_zip_code
+ req|Phones.Phone.Type  |shipping.phone_type
+ req|Phones.Phone.DDD   |shipping.phone_prefix
+ req|Phones.Phone.Number|shipping.phone       
+ opt|LegalDocument2     |shipping.rg_ie
+ opt|BirthDate          |shipping.birthdate
+ opt|Email              |shipping.email
+ opt|Genre              |shipping.genre
+ opt|Address.Comp       |shipping.address_complement
+ opt|Address.Country    |shipping.address_country
+ opt|Address.Reference  |shipping.address_reference
+ opt|Phones.Phone.DDI   |shipping.phone_ddi
+
+========Pagamento
+ opt|Sequential         |
+ req|Date               |                        yyyy-mm-ddThh:mm:ss
+ req|Amount             |total
+ req|PaymentTypeID      |tipo_de_pagamento
+ opt|QtyInstallments    |parcelas
+ opt|Intrest            |juros_taxa
+ opt|IntrestValue       |juros_valor
+ opt|CardNumber         |card_number
+ opt|CardBin            |card_bin
+ opt|CardType           |card_type
+ opt|CardExpirationDate |card_expiration_date
+ opt|Name               |billing.name
+ opt|LegalDocument      |billing.document_id
+ opt|Address.Street     |billing.address_street
+ opt|Address.Number     |billing.address_number
+ opt|Address.Comp       |billing.address_complement
+ opt|Address.County     |billing.address_district
+ opt|Address.City       |billing.address_city
+ opt|Address.State      |billing.address_state
+ opt|Address.Country    |billing.address_countre
+ opt|Address.ZipCode    |billing.address_zip_code
+ opt|Address.Reference  |billing.address_reference
+ opt|Nsu                |billing.nsu
+ opt|Currency           |currency
+
