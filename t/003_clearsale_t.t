@@ -53,6 +53,7 @@ my $cart = $antifraud->new_cart(
         origin              => 'origem do pedido',
         pedido_id           => $pedido_num,
         data                => $data,
+        data_pagamento      => $data,
         total_items         => 50,
         parcelas            => 2,
         tipo_de_pagamento   => 1,
@@ -67,8 +68,7 @@ my $cart = $antifraud->new_cart(
         gift_message        => 'Enjoy your gift!',
         observations        => '.......obs......',
         buyer       => {
-            #email  => 'hernan@cpan.org',
-            #name   => 'Mr. Buyer',
+            email   => 'comprador@email.com',
             ip      => '200.232.107.100',
         },
         shipping => {
@@ -127,11 +127,14 @@ my $cart = $antifraud->new_cart(
 );
 $cart->add_item(
     {
-        id       => 1,
-        name     => 'Produto NOME1',
-        category => 'Informática',
-        price    => 200.5,
-        quantity => 10,
+        id              => 1,
+        name            => 'Produto NOME1',
+        category        => 'Informática',
+        price           => 200.5,
+        quantity        => 10,
+        gift_type_id    => 1,
+        category_id     => 2,
+        generic         => 'bla bla bla',
     }
 );
 
@@ -231,11 +234,24 @@ $cart->add_item(
     is( $item->quantity, 1,       'item quantity is correct' );
 }
 
-
+my $xml_orders = $antifraud->create_xml_send_orders( $cart );
+#my $res = $antifraud->ws_send_order( $xml_orders );
+warn "**** ENVIANDO XML DE TESTE HARDCODED... retirar****" ;my $res = $antifraud->ws_send_order( &xml_para_teste() );
+use Data::Printer;
+warn p $res;
 
 done_testing;
 
 sub get_value_for {
     my ( $form, $name ) = @_;
     return $form->look_down( _tag => 'input', name => $name )->attr('value');
+}
+
+
+sub xml_para_teste {
+    return '<ClearSale><Orders><Order><ID>P3D1D0-ID-950352</ID><Reanalise>1</Reanalise><Obs>.......obs......</Obs><GiftMessage>Enjoy your gift!</GiftMessage><TotalItems>50</TotalItems><Date>2012-04-20T04:20:00</Date><QtyInstallments>2</QtyInstallments><TotalOrder>12.90</TotalOrder><DeliveryTimeCD>cinco dias</DeliveryTimeCD><Origin>origem do pedido</Origin><IP>200.232.107.100</IP><Email>comprador@email.com</Email><B2B_B2C>B2C</B2B_B2C><ShippingPrice>98.21</ShippingPrice><CollectionData><ID>XXX-YYY-010</ID><BirthDate>2012-04-20T04:20:00</BirthDate><LegalDocument2>98.765.432-1</LegalDocument2><Type>PJ</Type><Genre>M</Genre><LegalDocument1>999222111222</LegalDocument1><Email>email@billing.com</Email><Name>Nome Billing</Name><Address><Comp>apto 50</Comp><Street>Rua billing</Street><County>Bills</County><City>Bill City</City><Reference>Prox ao shopping XYZ</Reference><State>Vila Bill</State><Number>333</Number><ZipCode>99900-022</ZipCode></Address><Phones><Phone><Number>5670-0201</Number><DDD>11</DDD><DDI>12</DDI></Phone></Phones></CollectionData><ShippingData><ID>XXX-YYY-010</ID><BirthDate>2012-29-10T20:21:22</BirthDate><LegalDocument2>98.765.432-1</LegalDocument2><Type>PJ</Type><Genre>M</Genre><LegalDocument1>999222111555</LegalDocument1><Email>email@shipping.com</Email><Name>Nome Shipping</Name><Address><Comp>apto 40</Comp><Street>Rua shipping</Street><County>Ships</County><City>Shipping City</City><Reference>Prox ao shopping XYZ</Reference><State>Vila Shipping</State><Number>334</Number><ZipCode>99900-099</ZipCode></Address><Phones><Phone><Number>7770-0201</Number><DDD>13</DDD><DDI>12</DDI></Phone></Phones></ShippingData><Payments><Payment><CardType>1</CardType><CardNumber>31321323123213</CardNumber><CardExpirationDate>05/13</CardExpirationDate><Nsu>xxx-nsu-xxx</Nsu><LegalDocument>999222111222</LegalDocument><CardBin>321</CardBin><Intrest>12</Intrest><Date>2012-04-20T04:20:00</Date><QtyInstallments>2</QtyInstallments><Amount>12.90</Amount><PaymentTypeID>1</PaymentTypeID><Name>Nome Billing</Name><Sequential>xxx</Sequential><IntrestValue>1000.00</IntrestValue><Address><Comp>apto 50</Comp><Street>Rua billing</Street><County>Bills</County><City>Bill City</City><Reference>Prox ao shopping XYZ</Reference><State>Vila Bill</State><Number>333</Number><ZipCode>99900-022</ZipCode><Country>Brazil</Country></Address></Payment></Payments><Items><Item><Qty>10</Qty><ID>1</ID><CategoryID>2</CategoryID><CategoryName>Informática</CategoryName><Generic>bla bla bla</Generic><ItemValue>200.50</ItemValue><Name>Produto NOME1</Name><GiftTypeID>1</GiftTypeID></Item><Item><Qty>5</Qty><ID>02</ID><ItemValue>0.56</ItemValue><Name>Produto NOME2</Name></Item><Item><Qty>1</Qty><ID>03</ID><ItemValue>10.00</ItemValue><Name>Produto NOME3</Name></Item><Item><Qty>1</Qty><ID>my-id</ID><ItemValue>10.00</ItemValue><Name>Produto NOME4</Name></Item></Items></Order></Orders></ClearSale>';
+
+
+
+
 }

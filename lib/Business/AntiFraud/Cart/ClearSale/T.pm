@@ -97,6 +97,18 @@ has data => (
     },
 );
 
+has data_pagamento => (
+    is       => 'rw',
+    required => 1,
+    coerce   => sub {
+        my $data = $_[0];
+        if ( ref $data && ref $data eq 'DateTime' ) {
+            return $data->ymd('-').'T'.$data->hms(':');
+        }
+        return $data;
+    },
+);
+
 has shipping_price => (
     is       => 'rw',
     required => 0,
@@ -142,6 +154,11 @@ has reanalise => (
     required => 0,
 );
 
+has sequential => (
+    is       => 'rw',
+    required => 0,
+);
+
 has origin => (
     is       => 'rw',
     required => 0,
@@ -156,26 +173,6 @@ has juros_valor => (
     is       => 'rw',
     required => 0,
     coerce => \&stringified_money,
-);
-
-has card_number => (
-    is       => 'rw',
-    required => 0,
-);
-
-has card_bin => (
-    is       => 'rw',
-    required => 0,
-);
-
-has card_type => (
-    is       => 'rw',
-    required => 0,
-);
-
-has card_expiration_date => (
-    is       => 'rw',
-    required => 0,
 );
 
 sub add_item {

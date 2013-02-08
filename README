@@ -71,17 +71,17 @@ Req?|Campos do ClearSale| Campos interface
  opt|Phones.Phone.DDI   |shipping.phone_ddi
 
 ========Pagamento
- opt|Sequential         |
- req|Date               |                        yyyy-mm-ddThh:mm:ss
+ req|Date               |data_pagamento                        yyyy-mm-ddThh:mm:ss
  req|Amount             |total
  req|PaymentTypeID      |tipo_de_pagamento
+ opt|Sequential         |sequential
  opt|QtyInstallments    |parcelas
  opt|Intrest            |juros_taxa
  opt|IntrestValue       |juros_valor
- opt|CardNumber         |card_number
- opt|CardBin            |card_bin
- opt|CardType           |card_type
- opt|CardExpirationDate |card_expiration_date
+ opt|CardNumber         |billing.card_number
+ opt|CardBin            |billing.card_bin
+ opt|CardType           |billing.card_type
+ opt|CardExpirationDate |billing.card_expiration_date
  opt|Name               |billing.name
  opt|LegalDocument      |billing.document_id
  opt|Address.Street     |billing.address_street

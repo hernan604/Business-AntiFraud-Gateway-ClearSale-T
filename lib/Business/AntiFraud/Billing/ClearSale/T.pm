@@ -32,5 +32,24 @@ has genre               => ( is => 'rw', required => 0, );
 has address_reference   => ( is => 'rw', required => 0, );
 has phone_ddi           => ( is => 'rw', required => 0, );
 has nsu                 => ( is => 'rw', required => 0, );
+has card_number => (
+    is       => 'rw',
+    required => 0,
+);
+
+has card_bin => (
+    is       => 'rw',
+    required => 0,
+);
+
+has card_type => (
+    is       => 'rw',
+    required => 0,
+);
+
+has card_expiration_date => (
+    is       => 'rw',
+    required => 0,
+);
 
 1;
