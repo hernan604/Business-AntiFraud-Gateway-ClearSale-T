@@ -4,7 +4,15 @@ use Moo;
 extends qw/Business::AntiFraud::Billing/;
 
 has client_id           => ( is => 'rw', required => 1, );
-has person_type         => ( is => 'rw', required => 1, );
+has person_type         => ( is => 'rw', required => 1,
+    coerce => sub {
+        my $value = $_[0];
+        if ( $value =~ m/pj/ig ) {
+            return 2;
+        }
+        return 1;
+    },
+);
 has phone_type          => ( is => 'rw', required => 1, );
 has name                => ( is => 'rw', required => 1, );
 has document_id         => ( is => 'rw', required => 1, ); #CPF ou CPNJ

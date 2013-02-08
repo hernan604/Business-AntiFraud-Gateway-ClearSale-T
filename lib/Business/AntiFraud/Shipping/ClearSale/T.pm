@@ -4,7 +4,15 @@ use Moo;
 extends qw/Business::AntiFraud::Shipping/;
 
 has client_id           => ( is => 'rw', required => 1, );
-has person_type         => ( is => 'rw', required => 1, );
+has person_type         => ( is => 'rw', required => 1,
+    coerce => sub {
+        my $value = $_[0];
+        if ( $value =~ m/pj/ig ) {
+            return 2;
+        }
+        return 1;
+    },
+);
 has rg_ie               => ( is => 'rw', required => 0, ); #LegalDocument2
 has birthdate => (
     is => 'rw',

@@ -164,24 +164,26 @@ sub ws_send_order {
 
 sub add_xml_node_items {
     my ( $self, $node, $cart ) = @_;
-    my $fields_item  = {
-        ID           => 'id',
-        Name         => 'name',
-        ItemValue    => 'price',
-        Generic      => 'generic',
-        Qty          => 'quantity',
-        GiftTypeID   => 'gift_type_id',
-        CategoryID   => 'category_id',
-        CategoryName => 'category',
-    };
+    my $fields_list  = [
+        {ID           => 'id',              },
+        {Name         => 'name',            },
+        {ItemValue    => 'price',           },
+        {Generic      => 'generic',         },
+        {Qty          => 'quantity',        },
+        {GiftTypeID   => 'gift_type_id',    },
+        {CategoryID   => 'category_id',     },
+        {CategoryName => 'category',        },
+    ];
     foreach my $item ( @{ $cart->_items } ) {
         my $node_item = $self->xml->createElement( 'Item' );
-        foreach my $field ( keys $fields_item ) {
-            my $attr = $fields_item->{ $field };
-            if ( my $val = $item->$attr ) {
-                my $new_node = $self->xml->createElement( $field );
-                $new_node->appendText( $val );
-                $node_item->addChild( $new_node );
+        foreach my $fields_item ( @$fields_list ) {
+            foreach my $field ( keys $fields_item ) {
+                my $attr = $fields_item->{ $field };
+                if ( my $val = $item->$attr ) {
+                    my $new_node = $self->xml->createElement( $field );
+                    $new_node->appendText( $val );
+                    $node_item->addChild( $new_node );
+                }
             }
         }
         $node->addChild( $node_item );
@@ -190,81 +192,85 @@ sub add_xml_node_items {
 
 sub add_xml_node_payment {
     my ( $self, $node, $cart ) = @_;
+    #xml fields order matters... :/
+    my $fields_payment = [
+       {Date                => 'data_pagamento',                                        },
+       {Amount              => 'total',                                                 },
+       {PaymentTypeID       => 'tipo_de_pagamento',                                     },
+       {QtyInstallments     => 'parcelas',                                              },
+       {Interest            => 'juros_taxa',                                            },
+       {InterestValue       => 'juros_valor',                                           },
+       {CardNumber          => { object => 'billing', attr => 'card_number',           }},
+       {CardBin             => { object => 'billing', attr => 'card_bin',              }},
+       {CardType            => { object => 'billing', attr => 'card_type',             }},
+       {CardExpirationDate  => { object => 'billing', attr => 'card_expiration_date',  }},
+       {Name                => { object => 'billing', attr => 'name',                  }},
+       {LegalDocument       => { object => 'billing', attr => 'document_id',           }},
 
-    my $fields_payment = {
-        Sequential          => 'sequential',
-        Date                => 'data_pagamento',
-        Amount              => 'total',
-        PaymentTypeID       => 'tipo_de_pagamento',
-        QtyInstallments     => 'parcelas',
-        Intrest             => 'juros_taxa',
-        IntrestValue        => 'juros_valor',
-        Nsu                 => { object => 'billing', attr => 'nsu',                    },
-        CardNumber          => { object => 'billing', attr => 'card_number',            },
-        CardBin             => { object => 'billing', attr => 'card_bin',               },
-        CardType            => { object => 'billing', attr => 'card_type',              },
-        CardExpirationDate  => { object => 'billing', attr => 'card_expiration_date',   },
-        Name                => { object => 'billing', attr => 'name',                   },
-        LegalDocument       => { object => 'billing', attr => 'document_id',            },
-    };
+      #{Sequential          => 'sequential',                                            },
+    ];
     $self->add_xml_values( $node, $cart, $fields_payment );
 
     my $node_payment_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_payment_address );
 
-    my $fields_address = {
-        Street      => { object => 'billing', attr => 'address_street',     },
-        Number      => { object => 'billing', attr => 'address_number',     },
-        Comp        => { object => 'billing', attr => 'address_complement', },
-        County      => { object => 'billing', attr => 'address_district',   },
-        City        => { object => 'billing', attr => 'address_city',       },
-        State       => { object => 'billing', attr => 'address_state',      },
-        Country     => { object => 'billing', attr => 'address_country',    },
-        ZipCode     => { object => 'billing', attr => 'address_zip_code',   },
-        Reference   => { object => 'billing', attr => 'address_reference',  },
-    };
+    my $fields_address = [
+      { Street      => { object => 'billing', attr => 'address_street',     }},
+      { Number      => { object => 'billing', attr => 'address_number',     }},
+      { Comp        => { object => 'billing', attr => 'address_complement', }},
+      { County      => { object => 'billing', attr => 'address_district',   }},
+      { City        => { object => 'billing', attr => 'address_city',       }},
+      { State       => { object => 'billing', attr => 'address_state',      }},
+      { Country     => { object => 'billing', attr => 'address_country',    }},
+      { ZipCode     => { object => 'billing', attr => 'address_zip_code',   }},
+    ];
     $self->add_xml_values( $node_payment_address, $cart, $fields_address );
+
+    my $fields_payment_part2 = [
+       {Nsu                 => { object => 'billing', attr => 'nsu',        }},
+    ];
+    $self->add_xml_values( $node, $cart, $fields_payment_part2 );
 }
 
 sub add_xml_nodes_shipping {
     my ( $self, $node, $cart ) = @_;
 
-    #append CollectionData node information
-    my $fields_collection = {
-        ID              => { object => 'shipping', attr => 'client_id' },
-        Type            => { object => 'shipping', attr => 'person_type' },
-        LegalDocument1  => { object => 'shipping', attr => 'document_id' },
-        LegalDocument2  => { object => 'shipping', attr => 'rg_ie' },
-        Name            => { object => 'shipping', attr => 'name' },
-        BirthDate       => { object => 'shipping', attr => 'birthdate' },
-        Email           => { object => 'shipping', attr => 'email' },
-        Genre           => { object => 'shipping', attr => 'genre' },
-    };
+    my $fields_collection = [
+       { ID              => { object => 'shipping', attr => 'client_id'   }},
+       { Type            => { object => 'shipping', attr => 'person_type' }},
+       { LegalDocument1  => { object => 'shipping', attr => 'document_id' }},
+       { LegalDocument2  => { object => 'shipping', attr => 'rg_ie'       }},
+       { Name            => { object => 'shipping', attr => 'name'        }},
+       { BirthDate       => { object => 'shipping', attr => 'birthdate'   }},
+       { Email           => { object => 'shipping', attr => 'email'       }},
+       { Genre           => { object => 'shipping', attr => 'genre'       }},
+    ];
     $self->add_xml_values( $node, $cart, $fields_collection );
 
 
     #now, append the address information
-    my $fields_collection_address = {
-        Street      => { object => 'shipping', attr => 'address_street' },
-        Number      => { object => 'shipping', attr => 'address_number' },
-        Comp        => { object => 'shipping', attr => 'address_complement' },
-        County      => { object => 'shipping', attr => 'address_district' },
-        City        => { object => 'shipping', attr => 'address_city' },
-        State       => { object => 'shipping', attr => 'address_state' },
-        ZipCode     => { object => 'shipping', attr => 'address_zip_code' },
-        Reference   => { object => 'shipping', attr => 'address_reference' },
-    };
+    my $fields_collection_address = [
+       {Street      => { object => 'shipping', attr => 'address_street'     }},
+       {Number      => { object => 'shipping', attr => 'address_number'     }},
+       {Comp        => { object => 'shipping', attr => 'address_complement' }},
+       {County      => { object => 'shipping', attr => 'address_district'   }},
+       {City        => { object => 'shipping', attr => 'address_city'       }},
+       {State       => { object => 'shipping', attr => 'address_state'      }},
+       {Country     => { object => 'shipping', attr => 'address_country',   }},
+       {ZipCode     => { object => 'shipping', attr => 'address_zip_code'   }},
+       {Reference   => { object => 'shipping', attr => 'address_reference'  }},
+    ];
     my $node_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_address );
     $self->add_xml_values( $node_address, $cart, $fields_collection_address );
 
     #now, append the phone information
-    my $fields_collection_phone = {
-        Type        => { object => 'shipping', attr => 'phone_type' },
-        DDI         => { object => 'shipping', attr => 'phone_ddi' },
-        DDD         => { object => 'shipping', attr => 'phone_prefix' },
-        Number      => { object => 'shipping', attr => 'phone' },
-    };
+    my $fields_collection_phone = [
+       {Type        => { object => 'shipping', attr => 'phone_type'     }},
+       {DDI         => { object => 'shipping', attr => 'phone_ddi'      }},
+       {DDD         => { object => 'shipping', attr => 'phone_prefix'   }},
+       {Number      => { object => 'shipping', attr => 'phone'          }},
+    ];
     my $node_phones = $self->xml->createElement( 'Phones' );
     $node->addChild( $node_phones );
     my $node_phone = $self->xml->createElement( 'Phone' );
@@ -272,45 +278,48 @@ sub add_xml_nodes_shipping {
     $self->add_xml_values( $node_phone, $cart, $fields_collection_phone );
 }
 
+=head2 add_xml_nodes_collection
+builds the <CollectionData> node
+=cut
 sub add_xml_nodes_collection {
     my ( $self, $node, $cart ) = @_;
 
     #append CollectionData node information
-    my $fields_collection = {
-        ID              => { object => 'billing', attr => 'client_id' },
-        Type            => { object => 'billing', attr => 'person_type' },
-        LegalDocument1  => { object => 'billing', attr => 'document_id' },
-        LegalDocument2  => { object => 'billing', attr => 'rg_ie' },
-        Name            => { object => 'billing', attr => 'name' },
-        BirthDate       => { object => 'billing', attr => 'birthdate' },
-        Email           => { object => 'billing', attr => 'email' },
-        Genre           => { object => 'billing', attr => 'genre' },
-    };
+    my $fields_collection = [
+       {ID              => { object => 'billing', attr => 'client_id'   }},
+       {Type            => { object => 'billing', attr => 'person_type' }},
+       {LegalDocument1  => { object => 'billing', attr => 'document_id' }},
+       {LegalDocument2  => { object => 'billing', attr => 'rg_ie'       }},
+       {Name            => { object => 'billing', attr => 'name'        }},
+       {BirthDate       => { object => 'billing', attr => 'birthdate'   }},
+       {Email           => { object => 'billing', attr => 'email'       }},
+       {Genre           => { object => 'billing', attr => 'genre'       }},
+    ];
     $self->add_xml_values( $node, $cart, $fields_collection );
 
-
     #now, append the address information
-    my $fields_collection_address = {
-        Street      => { object => 'billing', attr => 'address_street' },
-        Number      => { object => 'billing', attr => 'address_number' },
-        Comp        => { object => 'billing', attr => 'address_complement' },
-        County      => { object => 'billing', attr => 'address_district' },
-        City        => { object => 'billing', attr => 'address_city' },
-        State       => { object => 'billing', attr => 'address_state' },
-        ZipCode     => { object => 'billing', attr => 'address_zip_code' },
-        Reference   => { object => 'billing', attr => 'address_reference' },
-    };
+    my $fields_collection_address = [
+       {Street      => { object => 'billing', attr => 'address_street'      }},
+       {Number      => { object => 'billing', attr => 'address_number'      }},
+       {Comp        => { object => 'billing', attr => 'address_complement'  }},
+       {County      => { object => 'billing', attr => 'address_district'    }},
+       {City        => { object => 'billing', attr => 'address_city'        }},
+       {State       => { object => 'billing', attr => 'address_state'       }},
+       {Country     => { object => 'billing', attr => 'address_country',    }},
+       {ZipCode     => { object => 'billing', attr => 'address_zip_code'    }},
+       {Reference   => { object => 'billing', attr => 'address_reference'   }},
+    ];
     my $node_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_address );
     $self->add_xml_values( $node_address, $cart, $fields_collection_address );
 
     #now, append the phone information
-    my $fields_collection_phone = {
-        Type        => { object => 'billing', attr => 'phone_type' },
-        DDI         => { object => 'billing', attr => 'phone_ddi' },
-        DDD         => { object => 'billing', attr => 'phone_prefix' },
-        Number      => { object => 'billing', attr => 'phone' },
-    };
+    my $fields_collection_phone = [
+       {Type        => { object => 'billing', attr => 'phone_type'      }},
+       {DDI         => { object => 'billing', attr => 'phone_ddi'       }},
+       {DDD         => { object => 'billing', attr => 'phone_prefix'    }},
+       {Number      => { object => 'billing', attr => 'phone'           }},
+    ];
     my $node_phones = $self->xml->createElement( 'Phones' );
     $node->addChild( $node_phones );
     my $node_phone = $self->xml->createElement( 'Phone' );
@@ -318,59 +327,57 @@ sub add_xml_nodes_collection {
     $self->add_xml_values( $node_phone, $cart, $fields_collection_phone );
 }
 
-sub add_xml_nodes_order {
+sub add_xml_nodes_order { #order means your cart order... the stuff you bought
     my ( $self, $node, $cart ) = @_;
-    my $fields_pedido = {
-        ID                  => 'pedido_id',
-        Date                => 'data',
-        Email               => {
-            object      => 'buyer',
-            attr        => 'email',
-        },
-        B2B_B2C             => 'business_type',
-        ShippingPrice       => 'shipping_price',
-        TotalItems          => 'total_items',
-        TotalOrder          => 'total',
-        QtyInstallments     => 'parcelas',
-        DeliveryTimeCD      => 'delivery_time',
-        QtyItems            => 'qty_items',
-       #QtyPaymentTypes     => 'qty_payment_types',
-        IP                  => {
-            object      => 'buyer',
-            attr        => 'ip',
-        },
-        GiftMessage         => 'gift_message',
-        Obs                 => 'observations',
-        Status              => 'status',
-        Reanalise           => 'reanalise',
-        Origin              => 'origin',
-    };
+    my $fields_pedido = [
+      { ID                  => 'pedido_id',                         },
+      { Date                => 'data',                              },
+      { Email               => { object => 'buyer',attr => 'email'} },
+      { B2B_B2C             => 'business_type',                     },
+      { ShippingPrice       => 'shipping_price',                    },
+      { TotalItens          => 'total_items',                       },
+      { TotalOrder          => 'total',                             },
+      { QtyInstallments     => 'parcelas',                          },
+      { DeliveryTimeCD      => 'delivery_time',                     },
+      { QtyItems            => 'qty_items',                         },
+      { QtyPaymentTypes     => 'qty_payment_types',                 },
+      { IP                  => { object => 'buyer', attr => 'ip', } },
+      { GiftMessage         => 'gift_message',                      },
+      { Obs                 => 'observations',                      },
+      { Status              => 'status',                            },
+      { Reanalise           => 'reanalise',                         },
+      { Origin              => 'origin',                            },
+    ];
     $self->add_xml_values( $node, $cart, $fields_pedido );
 }
 
 sub add_xml_values {
-    my ( $self, $node, $cart, $fields ) = @_;
-    foreach my $field ( keys $fields ) {
-        warn $field;
-        if ( ref $fields->{ $field } ne ref {} ) {
-            my $attr = $fields->{ $field };
-            if ( my $val = $cart->$attr ) {
-                warn $field . ': '. $val;
-                my $elem = $self->xml->createElement( $field );
-                $elem->appendText( $val );
-                $node->addChild( $elem );
-            }
-        } else {
-            if ( exists $fields->{$field}->{object} and
-                 exists $fields->{$field}->{attr} )
-            {
-                my $obj  = $fields->{$field}->{object};
-                my $attr = $fields->{$field}->{ attr };
-                if ( my $val = $cart->$obj->$attr ) {
-                    warn $field . ': ' . $val;
+    my ( $self, $node, $cart, $fields_obj ) = @_;
+    foreach my $fields ( @$fields_obj ) {
+        foreach my $field ( keys $fields ) {
+            warn $field;
+            if ( ref $fields->{ $field } ne ref {} ) {
+                my $attr = $fields->{ $field };
+                if ( defined $cart->$attr ) {
+                    my $val = $cart->$attr;
+                    warn $field . ': '. $val;
                     my $elem = $self->xml->createElement( $field );
                     $elem->appendText( $val );
                     $node->addChild( $elem );
+                }
+            } else {
+                if ( exists $fields->{$field}->{object} and
+                     exists $fields->{$field}->{attr} )
+                {
+                    my $obj  = $fields->{$field}->{object};
+                    my $attr = $fields->{$field}->{ attr };
+                    if ( defined $cart->$obj and defined $cart->$obj->$attr ) {
+                        my $val = $cart->$obj->$attr;
+                        warn $field . ': ' . $val;
+                        my $elem = $self->xml->createElement( $field );
+                        $elem->appendText( $val );
+                        $node->addChild( $elem );
+                    }
                 }
             }
         }
@@ -400,9 +407,5 @@ perl(1).
 
 =cut
 
-#################### main pod documentation end ###################
-
-
 1;
-# The preceding line will help the module return a true value
 
