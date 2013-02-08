@@ -138,14 +138,12 @@ sub create_xml_send_orders {
 
 }
 
+=head2 ws_send_order
+Equivalent for SendOrders
+=cut
+
 sub ws_send_order {
     my ( $self, $xml ) = @_;
-#   my $elem = SOAP::Data->type( 'xml' => $xml );
-#   my $soap = SOAP::Lite->new(
-#       uri     => $self->url_integracao_webservice,
-#       proxy   => $self->url_integracao_webservice,
-#   );
-#   my $res = $soap->call( 'sendOrders' , $elem );
     my $ws_method = '/SendOrders';
     my $ws_url = $self->url_integracao_webservice . $ws_method;
     my $content = [
@@ -159,6 +157,38 @@ sub ws_send_order {
         content => POST( $ws_url, [], Content => $content )->content,
     } );
     warn p $content;
+    return $res;
+}
+
+=head2 ws_update_order_status
+Equivalent for UpdateOrderStatus
+
+usage:
+    my $content = [
+        entityCode      => '',
+        orderID         => '', *** eh o pedido_id / $pedido_num
+        strStatusPedido => '',#26=Aprovado  27=Reprovado
+    ];
+    ws_update_order_status( $content );
+
+=cut
+
+sub ws_update_order_status {
+    my ( $self, $content ) = @_;
+    return 'erro, $content must be a ArrayRef: [ entityCode => "", orderID=> "", strStatusPedido => "" ]'
+        if ref $content ne ref [];
+    my $ws_method = '/UpdateOrderStatus';
+    my $ws_url = $self->url_pagamento . $ws_method;
+    my $res = $self->ua->request(
+        'POST',
+        $ws_url,
+        {
+            headers => {
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            },
+            content => POST( $ws_url, [], Content => $content )->content,
+        }
+    );
     return $res;
 }
 
@@ -194,6 +224,7 @@ sub add_xml_node_payment {
     my ( $self, $node, $cart ) = @_;
     #xml fields order matters... :/
     my $fields_payment = [
+       {Sequential          => 'sequential',                                            },
        {Date                => 'data_pagamento',                                        },
        {Amount              => 'total',                                                 },
        {PaymentTypeID       => 'tipo_de_pagamento',                                     },
@@ -206,8 +237,6 @@ sub add_xml_node_payment {
        {CardExpirationDate  => { object => 'billing', attr => 'card_expiration_date',  }},
        {Name                => { object => 'billing', attr => 'name',                  }},
        {LegalDocument       => { object => 'billing', attr => 'document_id',           }},
-
-      #{Sequential          => 'sequential',                                            },
     ];
     $self->add_xml_values( $node, $cart, $fields_payment );
 

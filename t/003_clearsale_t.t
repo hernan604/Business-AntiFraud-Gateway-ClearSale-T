@@ -47,7 +47,7 @@ my $data = DateTime->new(
 my $cart = $antifraud->new_cart(
     {
         business_type       => 'B2C', #B2C ou B2B
-        #sequential          => 'xxx', #sequential da clear sale.
+        sequential          => int rand(9), #sequential da clear sale.
         status              => 0, #0=novo, 9=aprovado, 41=canceldado,45=reprovado
         reanalise           => 0,
         origin              => 'origem do pedido',
@@ -122,7 +122,7 @@ my $cart = $antifraud->new_cart(
             card_bin           => '321',
             card_type          => 1, #1=diners,2=mastercard,3=visa,4=outros,5=american express,6=hipercard,7=aura
             card_expiration_date => '05/13', #igual ao que consta no cartão
-            nsu                => 'xxx-nsu-xxx'.rand(9292929),
+            nsu                => 'xxx-nsu-xxx'.int rand(9292929),
         },
     }
 );
@@ -238,159 +238,23 @@ $cart->add_item(
 my $xml_orders = $antifraud->create_xml_send_orders( $cart );
 warn $xml_orders;
 my $res = $antifraud->ws_send_order( $xml_orders );
-#warn "**** ENVIANDO XML DE TESTE HARDCODED... retirar****" ;my $res = $antifraud->ws_send_order( &xml_para_teste() );
 use Data::Printer;
 warn p $res;
+
+{
+    my $content = [
+        entityCode      => '4FDAE0FD-6937-4463-A2D2-84FFB48A71E0',
+        orderId         => $pedido_num,
+        strStatusPedido => 27, #26=Aprovado  27=Reprovado
+    ];
+    my $res = $antifraud->ws_update_order_status( $content );
+    warn p $res;
+}
+
 
 done_testing;
 
 sub get_value_for {
     my ( $form, $name ) = @_;
     return $form->look_down( _tag => 'input', name => $name )->attr('value');
-}
-
-
-sub xml_para_teste {
-    return q{
-<ClearSale>
-  <Orders>
-    <Order>
-      <ID>P3D1D0-ID-050352</ID>
-      <Date>2012-04-20T04:20:00</Date>
-      <Email>comprador@email.com</Email>
-      <B2B_B2C>B2C</B2B_B2C>
-      <ShippingPrice>98.21</ShippingPrice>
-      <TotalItens>50</TotalItens>
-      <TotalOrder>12.90</TotalOrder>
-      <QtyInstallments>2</QtyInstallments>
-      <DeliveryTimeCD>cinco dias</DeliveryTimeCD>
-      <IP>200.232.107.100</IP>
-      <GiftMessage>Enjoy your gift!</GiftMessage>
-      <Obs>.......obs......</Obs>
-
-      <Reanalise>0</Reanalise>
-      <Origin>origem do pedido</Origin>
-      <CollectionData>
-        <ID>XXX-YYY-010</ID>
-        <Type>1</Type>
-        <LegalDocument1>999222111222</LegalDocument1>
-        <LegalDocument2>98.765.432-1</LegalDocument2>
-        <Name>Nome Billing</Name>
-        <BirthDate>2012-04-20T04:20:00</BirthDate>
-        <Email>email@billing.com</Email>
-        <Genre>M</Genre>
-        <Address>
-          <Street>Rua billing</Street>
-          <Number>333</Number>
-          <Comp>apto 50</Comp>
-          <County>Bills</County>
-          <City>Bill City</City>
-          <State>Vila Bill</State>
-          <ZipCode>99900-022</ZipCode>
-          <Reference>Prox ao shopping XYZ</Reference>
-        </Address>
-        <Phones>
-          <Phone>
-            <DDI>12</DDI>
-            <DDD>11</DDD>
-            <Number>5670-0201</Number>
-          </Phone>
-        </Phones>
-      </CollectionData>
-      <ShippingData>
-
-        <ID>XXX-YYY-010</ID>
-        <Type>1</Type>
-        <LegalDocument1>999222111555</LegalDocument1>
-        <LegalDocument2>98.765.432-1</LegalDocument2>
-        <Name>Nome Shipping</Name>
-        <BirthDate>2012-10-29T20:21:22</BirthDate>
-        <Email>email@shipping.com</Email>
-        <Genre>M</Genre>
-
-        <Address>
-          <Street>Rua shipping</Street>
-          <Number>334</Number>
-          <Comp>apto 40</Comp>
-          <County>Ships</County>
-          <City>Shipping City</City>
-          <State>Vila Shipping</State>
-          <ZipCode>99900-099</ZipCode>
-          <Reference>Prox ao shopping XYZ</Reference>
-        </Address>
-
-        <Phones>
-          <Phone>
-            <DDI>12</DDI>
-            <DDD>13</DDD>
-            <Number>7770-0201</Number>
-          </Phone>
-        </Phones>
-
-      </ShippingData>
-        <Payments>
-          <Payment>
-            <Date>2012-04-20T04:20:00</Date>
-            <Amount>12.90</Amount>
-            <PaymentTypeID>1</PaymentTypeID>
-            <QtyInstallments>2</QtyInstallments>
-            <Interest>12</Interest>
-            <InterestValue>1000.00</InterestValue>
-            <CardNumber>31321323123213</CardNumber>
-            <CardBin>321</CardBin>
-            <CardType>1</CardType>
-            <CardExpirationDate>05/13</CardExpirationDate>
-            <Name>Nome Billing</Name>
-            <LegalDocument>999222111222</LegalDocument>
-            <Address>
-              <Street>Rua billing</Street>
-              <Number>333</Number>
-              <Comp>apto 50</Comp>
-              <County>Bills</County>
-              <City>Bill City</City>
-              <State>Vila Bill</State>
-              <Country>Brazil</Country>
-              <ZipCode>99900-022</ZipCode>
-            </Address>
-            <Nsu>xxx-nsu-xxx</Nsu>
-          </Payment>
-        </Payments>
-        <Items>
-          <Item>
-            <ID>1</ID>
-            <Name>Produto NOME1</Name>
-            <ItemValue>200.50</ItemValue>
-            <Generic>bla bla bla</Generic>
-            <Qty>10</Qty>
-            <GiftTypeID>1</GiftTypeID>
-            <CategoryID>2</CategoryID>
-            <CategoryName>Informática</CategoryName>
-          </Item>
-          <Item>
-              <ID>02</ID>
-              <Name>Produto NOME2</Name>
-              <ItemValue>0.56</ItemValue>
-              <Qty>5</Qty>
-          </Item>
-          <Item>
-            <ID>03</ID>
-            <Name>Produto NOME3</Name>
-            <ItemValue>10.00</ItemValue>
-            <Qty>1</Qty>
-          </Item>
-          <Item>
-            <ID>my-id</ID>
-            <Name>Produto NOME4</Name>
-            <ItemValue>10.00</ItemValue>
-            <Qty>1</Qty>
-          </Item>
-          </Items>
-        </Order>
-      </Orders>
-    </ClearSale>
-};
-
-
-
-
 }
