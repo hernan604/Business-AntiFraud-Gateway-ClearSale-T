@@ -16,7 +16,7 @@ use DateTime;
 
 my $antifraud = eval {
     Business::AntiFraud->new(
-        codigo_integracao   => '4FDAE0FD-6937-4463-A2D2-84FFB48A71E0',
+        codigo_integracao   => '856AD362-740C-4372-8C94-1EDFCDB9C25D',
         sandbox             => 1,
         gateway             => 'ClearSale::T',
         receiver_email      => 'hernanlopes@gmail.com',
@@ -34,7 +34,7 @@ if ($@) {
 
 isa_ok( $antifraud, 'Business::AntiFraud::Gateway::ClearSale::T' );
 
-my $pedido_num = 'P3D1D0-ID-'.int rand(999999);
+my $pedido_num = 'P3D1D0-ID-'.int rand(999999).int rand(999999);
 my $data = DateTime->new(
     year   => 2012,
     month  => 04,
@@ -237,17 +237,43 @@ $cart->add_item(
 
 my $xml_orders = $antifraud->create_xml_send_orders( $cart );
 warn $xml_orders;
-my $res = $antifraud->ws_send_order( $xml_orders );
-use Data::Printer;
-warn p $res;
+my $res = $antifraud->send_order( $xml_orders );
+#use Data::Printer;
+#warn p $res;
+
 
 {
-    my $content = [
-        entityCode      => '4FDAE0FD-6937-4463-A2D2-84FFB48A71E0',
-        orderId         => $pedido_num,
-        strStatusPedido => 27, #26=Aprovado  27=Reprovado
-    ];
-    my $res = $antifraud->ws_update_order_status( $content );
+#TODO: nao deu pra testar direito... o clear sale retorna msg dizendo que nao posso alterar status. estou aguardando respostas do pessoal de suporte da clearsale.
+    my $args = {
+        pedido_id       => $pedido_num,
+        status_pedido   => 'Aprovado', #Aprovado ou #Reprovado
+    };
+    my $res = $antifraud->update_order_status( $args );
+    warn p $res;
+}
+
+{
+    warn " getPackageStatus:";
+    my $transaction_id = '0448c07f-effc-4fa5-a9ad-571595679b46';
+    my $res = $antifraud->get_package_status( $transaction_id );
+    warn p $res;
+}
+
+{
+    warn " getOrderStatus:";
+    my $res = $antifraud->get_order_status( $pedido_num );
+    warn p $res;
+}
+
+{
+    warn " getOrdersStatus:";
+    my $res = $antifraud->get_orders_status( [$pedido_num,$pedido_num] );
+    warn p $res;
+}
+
+{
+    warn " getAnalystComments:";
+    my $res = $antifraud->get_analyst_comments( $pedido_num, 1 );
     warn p $res;
 }
 

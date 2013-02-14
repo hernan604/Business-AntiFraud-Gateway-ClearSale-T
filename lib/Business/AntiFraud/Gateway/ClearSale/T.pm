@@ -7,8 +7,8 @@ use multidimensional;
 use HTTP::Tiny;
 use Data::Dumper;
 use HTTP::Request::Common;
-#use SOAP::Lite;
 use XML::LibXML;
+use HTML::Entities;
 extends qw/Business::AntiFraud::Gateway::Base/;
 
 our    $VERSION     = '0.01';
@@ -21,17 +21,16 @@ Business::AntiFraud::Gateway::ClearSale::T - Interface perl p/ T-ClearSale & A-C
 
   use Business::AntiFraud::Gateway::ClearSale::T;
 
+=head1 OBS
+
+See the source of this file to find the fields relationship
 
 =head1 DESCRIPTION
 
-Stub documentation for this module was created by ExtUtils::ToduleMaker.
-It looks like the author of the extension was negligent enough
-to leave the stub unedited.
-
-Blah blah blah.
-
 =head2 ua
+
 Uses HTTP::Tiny as useragent
+
 =cut
 
 has ua => (
@@ -40,17 +39,32 @@ has ua => (
 );
 
 =head2 sandbox
-Indica se homologação ou sandbox
+
+Boolean. Indica se homologação ou sandbox
+
 =cut
 
-has sandbox => ( is => 'rw' );
+has sandbox                     => ( is => 'rw' );
+
+=head2 url_pagamento
+=cut
 
 has url_pagamento               => ( is => 'rw', );
+
+=head2 url_integracao_webservice
+=cut
+
 has url_integracao_webservice   => ( is => 'rw', );
+
+=head2 url_integracao_aplicacao
+=cut
+
 has url_integracao_aplicacao    => ( is => 'rw', );
 
 =head2 codigo_integracao
+
 Seu código de integração
+
 =cut
 
 has codigo_integracao           => ( is => 'rw', );
@@ -58,6 +72,8 @@ has codigo_integracao           => ( is => 'rw', );
 has xml                         => ( is => 'rw' );
 
 =head2 BUILD
+
+Define the urls (dev or prod) according to $self->sandbox
 
 =cut
 
@@ -76,12 +92,24 @@ sub define_ambiente {
     $self->producao();
 }
 
+=head2 homologacao
+
+Define urls for: homologacao
+
+=cut
+
 sub homologacao {
     my ( $self ) = @_;
     $self->url_pagamento( 'http://homologacao.clearsale.com.br/integracaov2/paymentintegration.asmx' );
     $self->url_integracao_webservice( 'http://homologacao.clearsale.com.br/integracaov2/service.asmx' );
     $self->url_integracao_aplicacao( 'http://homologacao.clearsale.com.br/aplicacao/Login.aspx' );
 }
+
+=head2 producao
+
+Define urls for: producao
+
+=cut
 
 sub producao {
     my ( $self ) = @_;
@@ -90,10 +118,18 @@ sub producao {
     $self->url_integracao_aplicacao( 'http://www.clearsale.com.br/aplicacao/Login.aspx' );
 }
 
+=head2 create_xml_send_orders
+
+Receives: $cart
+
+generates the XML based on $cart contents.
+
+Returns: XML
+
+=cut
+
 sub create_xml_send_orders {
     my ( $self, $cart ) = @_;
-    use Data::Printer;
-    warn p $cart;
 
     $self->xml(XML::LibXML::Document->new('1.0','utf-8'));
     my $node_clearsale = $self->xml->createElement('ClearSale');
@@ -105,44 +141,47 @@ sub create_xml_send_orders {
     # node: Orders
     my $node_order = $self->xml->createElement( 'Order' );
     $orders->addChild( $node_order );
-    $self->add_xml_nodes_order( $node_order, $cart );
+    $self->_add_xml_nodes_order( $node_order, $cart );
 
     #node: Collection Data / Billing
     my $node_collection = $self->xml->createElement( 'CollectionData' );
     $node_order->addChild( $node_collection );
-    $self->add_xml_nodes_collection( $node_collection, $cart );
+    $self->_add_xml_nodes_collection( $node_collection, $cart );
 
     #node: Shipping
     my $node_shipping = $self->xml->createElement( 'ShippingData' );
     $node_order->addChild( $node_shipping );
-    $self->add_xml_nodes_shipping( $node_shipping, $cart );
+    $self->_add_xml_nodes_shipping( $node_shipping, $cart );
 
     #node: Payments
     my $node_payments = $self->xml->createElement( 'Payments' );
     my $node_payment = $self->xml->createElement( 'Payment' );
     $node_order->addChild( $node_payments );
     $node_payments->addChild( $node_payment );
-    $self->add_xml_node_payment( $node_payment, $cart );
+    $self->_add_xml_node_payment( $node_payment, $cart );
 
     #node: Items
     my $node_items = $self->xml->createElement( 'Items' );
     $node_order->addChild( $node_items );
-    $self->add_xml_node_items( $node_items , $cart );
+    $self->_add_xml_node_items( $node_items , $cart );
 
 
     my $id = $self->xml->createElement( 'ID' );
     $id->appendText( $cart->pedido_id );
 
-    warn p $self->xml;
     return $self->xml->toString();
 
 }
 
-=head2 ws_send_order
+=head2 send_order
+
 Equivalent for SendOrders
+receives: $xml and posts to /SendOrders
+returns $response;
+
 =cut
 
-sub ws_send_order {
+sub send_order {
     my ( $self, $xml ) = @_;
     my $ws_method = '/SendOrders';
     my $ws_url = $self->url_integracao_webservice . $ws_method;
@@ -156,12 +195,15 @@ sub ws_send_order {
         },
         content => POST( $ws_url, [], Content => $content )->content,
     } );
-    warn p $content;
+    $res->{ content } = decode_entities( $res->{ content } );
     return $res;
 }
 
-=head2 ws_update_order_status
+=head2 update_order_status
+
 Equivalent for UpdateOrderStatus
+TODO: Testar.. estou recebendo uma mensagem abaixo. Pessoal da clearsale está em recesso.
+<Message>Status de origem não permite alteração de destino.</Message>
 
 usage:
     my $content = [
@@ -169,16 +211,23 @@ usage:
         orderID         => '', *** eh o pedido_id / $pedido_num
         strStatusPedido => '',#26=Aprovado  27=Reprovado
     ];
-    ws_update_order_status( $content );
+    update_order_status( $content );
 
 =cut
 
-sub ws_update_order_status {
-    my ( $self, $content ) = @_;
-    return 'erro, $content must be a ArrayRef: [ entityCode => "", orderID=> "", strStatusPedido => "" ]'
-        if ref $content ne ref [];
-    my $ws_method = '/UpdateOrderStatus';
+sub update_order_status {
+    my ( $self, $args ) = @_;
+    return 'erro, $content must be a HashRef: { pedido_id => "", status_pedido => "" }'
+        if           ref $args ne ref {} ||
+            !exists $args->{ pedido_id } ||
+        !exists $args->{ status_pedido }   ;
+    my $ws_method = '/UpdateOrderStatusID';
     my $ws_url = $self->url_pagamento . $ws_method;
+    my $content = [
+        entityCode      => $self->codigo_integracao,
+        orderId         => $args->{ pedido_id },
+        StatusPedido    => $args->{ status_pedido }, #Aprovado ou #Reprovado
+    ];
     my $res = $self->ua->request(
         'POST',
         $ws_url,
@@ -189,10 +238,304 @@ sub ws_update_order_status {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
+    $res->{ content } = decode_entities( $res->{ content } );
     return $res;
 }
 
-sub add_xml_node_items {
+=head2 get_package_satus
+
+recebe: TransactionID que é retornado após executar o send_order
+
+retorno:
+
+    \ {
+        content    "<?xml version="1.0" encoding="utf-8"?>
+    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
+    <ClearSale>
+      <Orders>
+        <Order>
+          <ID>P3D1D0-ID-347749</ID>
+          <Status>AMA</Status>
+          <Score>30.2400</Score>
+        </Order>
+      </Orders>
+    </ClearSale></string>",
+        headers    {
+            cache-control      "private, max-age=0",
+            connection         "close",
+            content-length     392,
+            content-type       "text/xml; charset=utf-8",
+            date               "Thu, 14 Feb 2013 12:47:02 GMT",
+            server             "Microsoft-IIS/6.0",
+            x-aspnet-version   "2.0.50727",
+            x-powered-by       "ASP.NET"
+        },
+        protocol   "HTTP/1.1",
+        reason     "OK",
+        status     200,
+        success    1,
+        url        "http://homologacao.clearsale.com.br/integracaov2/service.asmx/GetPackageStatus"
+    }
+
+
+=cut
+
+sub get_package_status {
+    my ( $self, $transaction_id ) = @_;
+    my $content = [
+        entityCode => $self->codigo_integracao,
+        packageId  => $transaction_id,
+    ];
+    my $ws_url = $self->url_integracao_webservice . '/GetPackageStatus';
+    my $res = $self->ua->request(
+        'POST',
+        $ws_url,
+        {
+            headers => {
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            },
+            content => POST( $ws_url, [], Content => $content )->content,
+        }
+    );
+    $res->{ content } = decode_entities( $res->{ content } );
+    return $res;
+}
+
+=head2 get_order_status
+
+Recupera o status atual dos pedidos na Clear Sale
+
+recebe: $pedido_id
+
+retorno:
+
+    \ {
+        content    "<?xml version="1.0" encoding="utf-8"?>
+    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
+    <ClearSale>
+      <Orders>
+        <Order>
+          <ID>P3D1D0-ID-300244</ID>
+          <Status>AMA</Status>
+          <Score>30.2400</Score>
+        </Order>
+      </Orders>
+    </ClearSale></string>",
+        headers    {
+            cache-control      "private, max-age=0",
+            connection         "close",
+            content-length     392,
+            content-type       "text/xml; charset=utf-8",
+            date               "Thu, 14 Feb 2013 13:01:01 GMT",
+            server             "Microsoft-IIS/6.0",
+            x-aspnet-version   "2.0.50727",
+            x-powered-by       "ASP.NET"
+        },
+        protocol   "HTTP/1.1",
+        reason     "OK",
+        status     200,
+        success    1,
+        url        "http://homologacao.clearsale.com.br/integracaov2/service.asmx/GetOrderStatus"
+    }
+
+
+=cut
+
+sub get_order_status {
+    my ( $self, $pedido_id ) = @_;
+    my $content = [
+        entityCode => $self->codigo_integracao,
+        orderID  => $pedido_id,
+    ];
+    my $ws_url = $self->url_integracao_webservice . '/GetOrderStatus';
+    my $res = $self->ua->request(
+        'POST',
+        $ws_url,
+        {
+            headers => {
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            },
+            content => POST( $ws_url, [], Content => $content )->content,
+        }
+    );
+    $res->{ content } = decode_entities( $res->{ content } );
+    return $res;
+}
+
+=head2 get_orders_status
+
+Recupera o status atual dos pedidos (utilize para obter informações de mais de 1 pedido)
+
+recebe: ArrayRef [$pedido1,$pedido2]
+
+retorna:
+
+    \ {
+        content    "<?xml version="1.0" encoding="utf-8"?>
+    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
+    <ClearSale>
+      <Orders>
+        <Order>
+          <ID>P3D1D0-ID-889443</ID>
+          <Status>AMA</Status>
+          <Score>30.2400</Score>
+        </Order>
+        <Order>
+          <ID>P3D1D0-ID-889443</ID>
+          <Status>AMA</Status>
+          <Score>30.2400</Score>
+        </Order>
+      </Orders>
+    </ClearSale></string>",
+        headers    {
+            cache-control      "private, max-age=0",
+            connection         "close",
+            content-length     558,
+            content-type       "text/xml; charset=utf-8",
+            date               "Thu, 14 Feb 2013 13:31:54 GMT",
+            server             "Microsoft-IIS/6.0",
+            x-aspnet-version   "2.0.50727",
+            x-powered-by       "ASP.NET"
+        },
+        protocol   "HTTP/1.1",
+        reason     "OK",
+        status     200,
+        success    1,
+        url        "http://homologacao.clearsale.com.br/integracaov2/service.asmx/GetOrdersStatus"
+    } at t/003_clearsale_t.t line 277.
+
+=cut
+
+sub get_orders_status {
+    my ( $self, $pedidos ) = @_;
+    next unless ref $pedidos eq ref [];
+    my $xml = XML::LibXML::Document->new('1.0','utf-8');
+    my $node_clearsale = $xml->createElement('ClearSale');
+    $xml->addChild( $node_clearsale );
+
+    my $node_orders = $xml->createElement('Orders');
+    $node_clearsale->addChild( $node_orders );
+
+    foreach my $pedido_id ( @$pedidos ) {
+        my $node_order    = $xml->createElement('Order');
+        my $node_order_id = $xml->createElement('ID');
+        $node_order->addChild( $node_order_id );
+        $node_order_id->appendText( $pedido_id );
+        $node_orders->addChild( $node_order );
+    }
+
+    my $content = [
+        entityCode => $self->codigo_integracao,
+        xml        => $xml->toString(),
+    ];
+    my $ws_url = $self->url_integracao_webservice . '/GetOrdersStatus';
+    my $res = $self->ua->request(
+        'POST',
+        $ws_url,
+        {
+            headers => {
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            },
+            content => POST( $ws_url, [], Content => $content )->content,
+        }
+    );
+    $res->{ content } = decode_entities( $res->{ content } );
+    return $res;
+
+}
+
+=head2 get_analyst_comments
+
+WS: http://homologacao.clearsale.com.br/integracaov2/service.asmx?op=GetAnalystComments
+
+recebe: $pedido_num, $get_all
+$get_all é um booleano indica se traz todos ou apenas ultimo comentario
+
+retorna:
+
+    \ {
+        content    "<?xml version="1.0" encoding="utf-8"?>
+    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
+    <Order>
+      <ID>P3D1D0-ID-680045</ID>
+      <Date d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <QtyInstallments d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <ShippingPrice d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <ShippingTypeID>0</ShippingTypeID>
+      <ManualOrder>
+        <ManualQuery d3p1:nil="true" xmlns:d3p1="http://www.w3.org/2001/XMLSchema-instance" />
+        <UserID>0</UserID>
+      </ManualOrder>
+      <TotalItens>0</TotalItens>
+      <TotalOrder>0</TotalOrder>
+      <Gift>0</Gift>
+      <Status>-1</Status>
+      <Reanalise>0</Reanalise>
+      <WeddingList d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <ReservationDate d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <Product d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <ListTypeID d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
+      <ShippingData>
+        <Type d3p1:nil="true" xmlns:d3p1="http://www.w3.org/2001/XMLSchema-instance" />
+        <BirthDate d3p1:nil="true" xmlns:d3p1="http://www.w3.org/2001/XMLSchema-instance" />
+        <Phones />
+        <Address />
+      </ShippingData>
+      <CollectionData>
+        <Type d3p1:nil="true" xmlns:d3p1="http://www.w3.org/2001/XMLSchema-instance" />
+        <BirthDate d3p1:nil="true" xmlns:d3p1="http://www.w3.org/2001/XMLSchema-instance" />
+        <Phones />
+        <Address />
+      </CollectionData>
+      <Payments />
+      <Items />
+      <Passangers />
+      <Connections />
+      <AnalystComments />
+      <CategoryValueID>0</CategoryValueID>
+    </Order></string>",
+        headers    {
+            cache-control      "private, max-age=0",
+            connection         "close",
+            content-length     2049,
+            content-type       "text/xml; charset=utf-8",
+            date               "Thu, 14 Feb 2013 14:05:46 GMT",
+            server             "Microsoft-IIS/6.0",
+            x-aspnet-version   "2.0.50727",
+            x-powered-by       "ASP.NET"
+        },
+        protocol   "HTTP/1.1",
+        reason     "OK",
+        status     200,
+        success    1,
+        url        "http://homologacao.clearsale.com.br/integracaov2/service.asmx/GetAnalystComments"
+    }
+
+=cut
+
+sub get_analyst_comments {
+    my ( $self, $pedido_num, $get_all ) = @_;
+    my $content = [
+        entityCode => $self->codigo_integracao,
+        orderID    => $pedido_num,
+        getAll     => ( defined $get_all ) ? ( $get_all == 1 ) ? 'True' : 'False' : 'False',
+    ];
+    my $ws_url = $self->url_integracao_webservice . '/GetAnalystComments';
+    my $res = $self->ua->request(
+        'POST',
+        $ws_url,
+        {
+            headers => {
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            },
+            content => POST( $ws_url, [], Content => $content )->content,
+        }
+    );
+    $res->{ content } = decode_entities( $res->{ content } );
+    return $res;
+}
+
+sub _add_xml_node_items {
     my ( $self, $node, $cart ) = @_;
     my $fields_list  = [
         {ID           => 'id',              },
@@ -220,7 +563,7 @@ sub add_xml_node_items {
     }
 }
 
-sub add_xml_node_payment {
+sub _add_xml_node_payment {
     my ( $self, $node, $cart ) = @_;
     #xml fields order matters... :/
     my $fields_payment = [
@@ -238,7 +581,7 @@ sub add_xml_node_payment {
        {Name                => { object => 'billing', attr => 'name',                  }},
        {LegalDocument       => { object => 'billing', attr => 'document_id',           }},
     ];
-    $self->add_xml_values( $node, $cart, $fields_payment );
+    $self->_add_xml_values( $node, $cart, $fields_payment );
 
     my $node_payment_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_payment_address );
@@ -253,15 +596,15 @@ sub add_xml_node_payment {
       { Country     => { object => 'billing', attr => 'address_country',    }},
       { ZipCode     => { object => 'billing', attr => 'address_zip_code',   }},
     ];
-    $self->add_xml_values( $node_payment_address, $cart, $fields_address );
+    $self->_add_xml_values( $node_payment_address, $cart, $fields_address );
 
     my $fields_payment_part2 = [
        {Nsu                 => { object => 'billing', attr => 'nsu',        }},
     ];
-    $self->add_xml_values( $node, $cart, $fields_payment_part2 );
+    $self->_add_xml_values( $node, $cart, $fields_payment_part2 );
 }
 
-sub add_xml_nodes_shipping {
+sub _add_xml_nodes_shipping {
     my ( $self, $node, $cart ) = @_;
 
     my $fields_collection = [
@@ -274,7 +617,7 @@ sub add_xml_nodes_shipping {
        { Email           => { object => 'shipping', attr => 'email'       }},
        { Genre           => { object => 'shipping', attr => 'genre'       }},
     ];
-    $self->add_xml_values( $node, $cart, $fields_collection );
+    $self->_add_xml_values( $node, $cart, $fields_collection );
 
 
     #now, append the address information
@@ -291,7 +634,7 @@ sub add_xml_nodes_shipping {
     ];
     my $node_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_address );
-    $self->add_xml_values( $node_address, $cart, $fields_collection_address );
+    $self->_add_xml_values( $node_address, $cart, $fields_collection_address );
 
     #now, append the phone information
     my $fields_collection_phone = [
@@ -304,13 +647,16 @@ sub add_xml_nodes_shipping {
     $node->addChild( $node_phones );
     my $node_phone = $self->xml->createElement( 'Phone' );
     $node_phones->addChild( $node_phone );
-    $self->add_xml_values( $node_phone, $cart, $fields_collection_phone );
+    $self->_add_xml_values( $node_phone, $cart, $fields_collection_phone );
 }
 
-=head2 add_xml_nodes_collection
+=head2 _add_xml_nodes_collection
+
 builds the <CollectionData> node
+
 =cut
-sub add_xml_nodes_collection {
+
+sub _add_xml_nodes_collection {
     my ( $self, $node, $cart ) = @_;
 
     #append CollectionData node information
@@ -324,7 +670,7 @@ sub add_xml_nodes_collection {
        {Email           => { object => 'billing', attr => 'email'       }},
        {Genre           => { object => 'billing', attr => 'genre'       }},
     ];
-    $self->add_xml_values( $node, $cart, $fields_collection );
+    $self->_add_xml_values( $node, $cart, $fields_collection );
 
     #now, append the address information
     my $fields_collection_address = [
@@ -340,7 +686,7 @@ sub add_xml_nodes_collection {
     ];
     my $node_address = $self->xml->createElement( 'Address' );
     $node->addChild( $node_address );
-    $self->add_xml_values( $node_address, $cart, $fields_collection_address );
+    $self->_add_xml_values( $node_address, $cart, $fields_collection_address );
 
     #now, append the phone information
     my $fields_collection_phone = [
@@ -353,10 +699,10 @@ sub add_xml_nodes_collection {
     $node->addChild( $node_phones );
     my $node_phone = $self->xml->createElement( 'Phone' );
     $node_phones->addChild( $node_phone );
-    $self->add_xml_values( $node_phone, $cart, $fields_collection_phone );
+    $self->_add_xml_values( $node_phone, $cart, $fields_collection_phone );
 }
 
-sub add_xml_nodes_order { #order means your cart order... the stuff you bought
+sub _add_xml_nodes_order { #order means your cart order... the stuff you bought
     my ( $self, $node, $cart ) = @_;
     my $fields_pedido = [
       { ID                  => 'pedido_id',                         },
@@ -377,19 +723,17 @@ sub add_xml_nodes_order { #order means your cart order... the stuff you bought
       { Reanalise           => 'reanalise',                         },
       { Origin              => 'origin',                            },
     ];
-    $self->add_xml_values( $node, $cart, $fields_pedido );
+    $self->_add_xml_values( $node, $cart, $fields_pedido );
 }
 
-sub add_xml_values {
+sub _add_xml_values {
     my ( $self, $node, $cart, $fields_obj ) = @_;
     foreach my $fields ( @$fields_obj ) {
         foreach my $field ( keys $fields ) {
-            warn $field;
             if ( ref $fields->{ $field } ne ref {} ) {
                 my $attr = $fields->{ $field };
                 if ( defined $cart->$attr ) {
                     my $val = $cart->$attr;
-                    warn $field . ': '. $val;
                     my $elem = $self->xml->createElement( $field );
                     $elem->appendText( $val );
                     $node->addChild( $elem );
@@ -402,7 +746,6 @@ sub add_xml_values {
                     my $attr = $fields->{$field}->{ attr };
                     if ( defined $cart->$obj and defined $cart->$obj->$attr ) {
                         my $val = $cart->$obj->$attr;
-                        warn $field . ': ' . $val;
                         my $elem = $self->xml->createElement( $field );
                         $elem->appendText( $val );
                         $node->addChild( $elem );
