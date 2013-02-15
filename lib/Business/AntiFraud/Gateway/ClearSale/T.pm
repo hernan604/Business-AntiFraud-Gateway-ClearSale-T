@@ -5,7 +5,6 @@ use bareword::filehandles;
 use indirect;
 use multidimensional;
 use HTTP::Tiny;
-use Data::Dumper;
 use HTTP::Request::Common;
 use XML::LibXML;
 use HTML::Entities;
@@ -15,17 +14,184 @@ our    $VERSION     = '0.01';
 
 =head1 NAME
 
-Business::AntiFraud::Gateway::ClearSale::T - Interface perl p/ T-ClearSale & A-ClearSale
+=encoding utf-8
+
+Business::AntiFraud::Gateway::ClearSale::T - Interface perl T-ClearSale & A-ClearSale
 
 =head1 SYNOPSIS
 
-  use Business::AntiFraud::Gateway::ClearSale::T;
+    use Business::AntiFraud;
+    use DateTime;
+
+    my $data = DateTime->new(
+        year   => 2012,
+        month  => 04,
+        day    => 20,
+        hour   => 04,
+        minute => 20,
+        second => 00,
+    );
+
+    my $antifraud = eval {
+        Business::AntiFraud->new(
+            codigo_integracao   => '856AD362-740C-4372-8C94-1EDFCDB9C25D',
+            sandbox             => 1,
+            gateway             => 'ClearSale::T',
+            receiver_email      => 'hernanlopes@gmail.com',
+            currency            => 'BRL',
+        );
+    };
+    my $cart = $antifraud->new_cart(
+        {
+            business_type       => 'B2C', #B2C ou B2B
+            sequential          => int rand(9), #sequential da clear sale.
+            status              => 0, #0=novo, 9=aprovado, 41=canceldado,45=reprovado
+            reanalise           => 0,
+            origin              => 'origem do pedido',
+            pedido_id           => $pedido_num,
+            data                => $data,
+            data_pagamento      => $data,
+            total_items         => 50,
+            parcelas            => 2,
+            tipo_de_pagamento   => 1,
+            tipo_cartao         => 2,
+            total               => 12.90,
+            total_paid          => 7.90,
+            juros_taxa          => 12,
+            juros_valor         => 1000.00,
+            shipping_price      => 98.21,
+            delivery_time       => 'cinco dias',
+            qty_payment_types   => '1',
+            gift_message        => 'Enjoy your gift!',
+            observations        => '.......obs......',
+            qty_items           => 10,
+            buyer       => {
+                email   => 'comprador@email.com',
+                ip      => '200.232.107.100',
+            },
+            shipping => {
+                client_id          => 'XXX-YYY-010',
+                person_type        => 'PJ', #PJ ou PF. juridica/fisica
+                document_id        => '999222111222',
+                rg_ie              => '98.765.432-1',
+                name               => 'Nome Shipping',
+                birthdate          => '2012-10-29T20:21:22', #or, yyyy-mm-ddThh:mm:ss
+                email              => 'email@shipping.com',
+                genre              => 'M', #1=masc/male, 0=feminino/female
+                document_id        => '999222111555',
+                address_street     => 'Rua shipping',
+                address_number     => '334',
+                address_district   => 'Ships',
+                address_city       => 'Shipping City',
+                address_state      => 'Vila Shipping',
+                address_zip_code   => '99900-099',
+                address_country    => 'Espanha',
+                address_complement => 'apto 40',
+                address_reference  => 'Prox ao shopping XYZ',
+                phone              => '7770-0201',
+                phone_prefix       => '13',
+                phone_type         => 0, #0=not defined,1=residential,2=comercial,3=recado,4=cobranca,5=temporario,6=cel
+                phone_ddi          => 12,
+            },
+            billing => {
+                client_id          => 'XXX-YYY-010',
+                person_type        => 'PJ', #PJ ou PF. juridica/fisica
+                document_id        => '999222111222',
+                rg_ie              => '98.765.432-1',
+                name               => 'Nome Billing',
+                birthdate          => $data, #or, yyyy-mm-ddThh:mm:ss
+                email              => 'email@billing.com',
+                genre              => 'M', #1=masc/male, 0=feminino/female
+                address_street     => 'Rua billing',
+                address_number     => '333',
+                address_district   => 'Bills',
+                address_city       => 'Bill City',
+                address_state      => 'Vila Bill',
+                address_zip_code   => '99900-022',
+                address_country    => 'Brazil',
+                address_complement => 'apto 50',
+                address_reference  => 'Prox ao shopping XYZ',
+                phone              => '5670-0201',
+                phone_prefix       => '11',
+                phone_type         => 0, #0=not defined,1=residential,2=comercial,3=recado,4=cobranca,5=temporario,6=cel
+                phone_ddi          => 12,
+                card_number        => '31321323123213',
+                card_bin           => '321',
+                card_type          => 1, #1=diners,2=mastercard,3=visa,4=outros,5=american express,6=hipercard,7=aura
+                card_expiration_date => '05/13', #igual ao que consta no cartão
+                nsu                => 'xxx-nsu-xxx'.int rand(9292929),
+            },
+        }
+    );
+    $cart->add_item(
+        {
+            id              => 1,
+            name            => 'Produto NOME1',
+            category        => 'Informática',
+            price           => 200.5,
+            quantity        => 10,
+            gift_type_id    => 1,
+            category_id     => 2,
+            generic         => 'bla bla bla',
+        }
+    );
+
+    $cart->add_item(
+        {
+            id       => '02',
+            name     => 'Produto NOME2',
+            price    => 0.56,
+            quantity => 5,
+        }
+    );
+
+    $cart->add_item(
+        {
+            id       => '03',
+            name     => 'Produto NOME3',
+            price    => 10,
+            quantity => 1,
+        }
+    );
+
+    $cart->add_item(
+        {
+            id       => 'my-id',
+            name     => 'Produto NOME4',
+            price    => 10,
+            quantity => 1,
+        }
+    );
+
+    # Enviar pedido para o clear sale
+
+    my $res = $antifraud->send_order( $cart );
+    use Data::Printer; warn p $res;
+
+    # Atualizar status de um pedido
+    my $args = {
+        pedido_id       => $pedido_num,
+        status_pedido   => 'Aprovado', #Aprovado ou #Reprovado
+    };
+    my $res = $antifraud->update_order_status( $args );
+
+    # getPackageStatus ( transaction id vem após send_order )
+    my $res = $antifraud->get_package_status( $transaction_id );
+
+    # getOrderStatus
+    my $res = $antifraud->get_order_status( $pedido_num );
+
+    # getOrdersStatus (varios pedidos)
+    my $res = $antifraud->get_orders_status( [$pedido_num,$pedido_num] );
+
+    # getAnalystComments
+    my $res = $antifraud->get_analyst_comments( $pedido_num, 1 );
 
 =head1 OBS
 
 See the source of this file to find the fields relationship
 
-=head1 DESCRIPTION
+=head1 ATTRIBUTES
 
 =head2 ua
 
@@ -40,7 +206,7 @@ has ua => (
 
 =head2 sandbox
 
-Boolean. Indica se homologação ou sandbox
+Boolean
 
 =cut
 
@@ -70,6 +236,9 @@ Seu código de integração
 has codigo_integracao           => ( is => 'rw', );
 
 has xml                         => ( is => 'rw' );
+
+
+=head1 METHODS
 
 =head2 BUILD
 
@@ -176,18 +345,21 @@ sub create_xml_send_orders {
 =head2 send_order
 
 Equivalent for SendOrders
+
 receives: $xml and posts to /SendOrders
+
 returns $response;
 
 =cut
 
 sub send_order {
-    my ( $self, $xml ) = @_;
+    my ( $self , $cart ) = @_;
+    my $xml = $self->create_xml_send_orders( $cart );
     my $ws_method = '/SendOrders';
     my $ws_url = $self->url_integracao_webservice . $ws_method;
     my $content = [
         entityCode  => $self->codigo_integracao,
-        xml         => $xml,
+        xml         => $self->xml,
     ];
     my $res = $self->ua->request( 'POST', $ws_url, {
         headers => {
@@ -195,17 +367,20 @@ sub send_order {
         },
         content => POST( $ws_url, [], Content => $content )->content,
     } );
-    $res->{ content } = decode_entities( $res->{ content } );
+    $res = $self->_decode_response( $res );
     return $res;
 }
 
 =head2 update_order_status
 
-Equivalent for UpdateOrderStatus
-TODO: Testar.. estou recebendo uma mensagem abaixo. Pessoal da clearsale está em recesso.
-<Message>Status de origem não permite alteração de destino.</Message>
+Will work only for orders with status APA or APM
+
+The documentation says:
+
+A atualização somente ocorrerá para pedidos aprovados no ClearSale (APA ou APM), status diferentes de aprovação não serão permitidos para atualizar o status de pagamento.
 
 usage:
+
     my $content = [
         entityCode      => '',
         orderID         => '', *** eh o pedido_id / $pedido_num
@@ -217,12 +392,13 @@ usage:
 
 sub update_order_status {
     my ( $self, $args ) = @_;
-    return 'erro, $content must be a HashRef: { pedido_id => "", status_pedido => "" }'
-        if           ref $args ne ref {} ||
-            !exists $args->{ pedido_id } ||
-        !exists $args->{ status_pedido }   ;
-    my $ws_method = '/UpdateOrderStatusID';
-    my $ws_url = $self->url_pagamento . $ws_method;
+    {
+        return 'erro, $content must be a HashRef: { pedido_id => "", status_pedido => "" }'
+            if           ref $args ne ref {} ||
+                !exists $args->{ pedido_id } ||
+            !exists $args->{ status_pedido }   ;
+    }
+    my $ws_url = $self->url_pagamento . '/UpdateOrderStatusID';
     my $content = [
         entityCode      => $self->codigo_integracao,
         orderId         => $args->{ pedido_id },
@@ -238,7 +414,9 @@ sub update_order_status {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
-    $res->{ content } = decode_entities( $res->{ content } );
+
+    $res = $self->_decode_response( $res );
+
     return $res;
 }
 
@@ -250,7 +428,6 @@ retorno:
 
     \ {
         content    "<?xml version="1.0" encoding="utf-8"?>
-    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
     <ClearSale>
       <Orders>
         <Order>
@@ -259,7 +436,7 @@ retorno:
           <Score>30.2400</Score>
         </Order>
       </Orders>
-    </ClearSale></string>",
+    </ClearSale>",
         headers    {
             cache-control      "private, max-age=0",
             connection         "close",
@@ -297,7 +474,7 @@ sub get_package_status {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
-    $res->{ content } = decode_entities( $res->{ content } );
+    $res = $self->_decode_response( $res );
     return $res;
 }
 
@@ -311,7 +488,6 @@ retorno:
 
     \ {
         content    "<?xml version="1.0" encoding="utf-8"?>
-    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
     <ClearSale>
       <Orders>
         <Order>
@@ -320,7 +496,7 @@ retorno:
           <Score>30.2400</Score>
         </Order>
       </Orders>
-    </ClearSale></string>",
+    </ClearSale>",
         headers    {
             cache-control      "private, max-age=0",
             connection         "close",
@@ -358,7 +534,7 @@ sub get_order_status {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
-    $res->{ content } = decode_entities( $res->{ content } );
+    $res = $self->_decode_response( $res );
     return $res;
 }
 
@@ -372,7 +548,6 @@ retorna:
 
     \ {
         content    "<?xml version="1.0" encoding="utf-8"?>
-    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
     <ClearSale>
       <Orders>
         <Order>
@@ -386,7 +561,7 @@ retorna:
           <Score>30.2400</Score>
         </Order>
       </Orders>
-    </ClearSale></string>",
+    </ClearSale>",
         headers    {
             cache-control      "private, max-age=0",
             connection         "close",
@@ -439,7 +614,7 @@ sub get_orders_status {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
-    $res->{ content } = decode_entities( $res->{ content } );
+    $res = $self->_decode_response( $res );
     return $res;
 
 }
@@ -449,13 +624,13 @@ sub get_orders_status {
 WS: http://homologacao.clearsale.com.br/integracaov2/service.asmx?op=GetAnalystComments
 
 recebe: $pedido_num, $get_all
+
 $get_all é um booleano indica se traz todos ou apenas ultimo comentario
 
 retorna:
 
     \ {
         content    "<?xml version="1.0" encoding="utf-8"?>
-    <string xmlns="http://www.clearsale.com.br/integration"><?xml version="1.0" encoding="utf-16"?>
     <Order>
       <ID>P3D1D0-ID-680045</ID>
       <Date d2p1:nil="true" xmlns:d2p1="http://www.w3.org/2001/XMLSchema-instance" />
@@ -493,7 +668,7 @@ retorna:
       <Connections />
       <AnalystComments />
       <CategoryValueID>0</CategoryValueID>
-    </Order></string>",
+    </Order>",
         headers    {
             cache-control      "private, max-age=0",
             connection         "close",
@@ -531,7 +706,7 @@ sub get_analyst_comments {
             content => POST( $ws_url, [], Content => $content )->content,
         }
     );
-    $res->{ content } = decode_entities( $res->{ content } );
+    $res = $self->_decode_response( $res );
     return $res;
 }
 
@@ -756,6 +931,25 @@ sub _add_xml_values {
     }
 }
 
+=head2 _decode_response
+
+strip out wsdl tags and decode the content into XML which is then returned
+
+=cut
+
+sub _decode_response {
+    my ( $self, $res ) = @_;
+    #TODO parse this in a better way and return a perl object
+    $res->{ content } =~ s#<\?xml([^\>]+)\>##g;
+    $res->{ content } =~ s#<string([^\>]+)\>##igmx;
+    $res->{ content } =~ s#</string>##igmx;
+    $res->{ content } =~ s#utf-16#utf-8#g;
+    $res->{ content } = decode_entities( $res->{ content } );
+    $res->{ content } =~ s/\n|\r//igm;
+    $res->{ content } =~ s/\?\>/\?\>\n/;
+    return $res;
+}
+
 =head1 AUTHOR
 
     Hernan Lopes
@@ -763,6 +957,10 @@ sub _add_xml_values {
     movimentoperl
     hernan@cpan.org
     http://github.com/hernan604
+
+=head1 SPONSORED BY
+
+http://www.nixus.com.br
 
 =head1 COPYRIGHT
 

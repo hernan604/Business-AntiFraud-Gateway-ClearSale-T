@@ -5,12 +5,9 @@
 use warnings;
 use strict;
 use Test::More;
-use Data::Printer;
 
 BEGIN { use_ok('Business::AntiFraud'); }
 
-#my $object = Business::AntiFraud->new ();
-#isa_ok ($object, 'Business::AntiFraud');
 use Business::AntiFraud;
 use DateTime;
 
@@ -21,7 +18,6 @@ my $antifraud = eval {
         gateway             => 'ClearSale::T',
         receiver_email      => 'hernanlopes@gmail.com',
         currency            => 'BRL',
-        checkout_url        => '',
     );
 };
 
@@ -52,8 +48,8 @@ my $cart = $antifraud->new_cart(
         reanalise           => 0,
         origin              => 'origem do pedido',
         pedido_id           => $pedido_num,
-        data                => $data,
-        data_pagamento      => $data,
+        data                => $data,#ou $data
+        data_pagamento      => '2012-10-29T20:21:22', #ou $data
         total_items         => 50,
         parcelas            => 2,
         tipo_de_pagamento   => 1,
@@ -235,52 +231,74 @@ $cart->add_item(
     is( $item->quantity, 1,       'item quantity is correct' );
 }
 
-my $xml_orders = $antifraud->create_xml_send_orders( $cart );
-warn $xml_orders;
-my $res = $antifraud->send_order( $xml_orders );
-#use Data::Printer;
-#warn p $res;
+sub has_node {
+    my ( $content, $node_str ) = @_;
+    return 0 if
+           ! defined $content
+        or ! defined $node_str
+        or $content !~ m/$node_str/gim;
+    return 1;
+}
 
+sub validate_nodes {
+    my ( $content, $nodes ) = @_;
+    foreach my $node ( @$nodes ) {
+        is( &has_node( $content, "<$node>"), 1, 'expected node found: ' . $node );
+    }
+}
+
+my $transaction_id = '';
 
 {
-#TODO: nao deu pra testar direito... o clear sale retorna msg dizendo que nao posso alterar status. estou aguardando respostas do pessoal de suporte da clearsale.
+    my $methods_expected = [ qw/define_ambiente homologacao producao create_xml_send_orders send_order update_order_status get_package_status get_order_status get_orders_status get_analyst_comments/ ];
+    foreach my $method ( @$methods_expected ) {
+        is( ref $antifraud->can( $method ), ref sub{}, 'method found in object' );
+    }
+}
+
+{
+    my $res = $antifraud->send_order( $cart );
+    is( exists $res->{ content }    , 1, 'content received' );
+    &validate_nodes( $res->{ content }, [ qw/TransactionID Status Message ID Score/ ] );
+    ($transaction_id) = $res->{ content } =~ m/TransactionID>([^<]+)</gm;
+}
+
+{
     my $args = {
         pedido_id       => $pedido_num,
         status_pedido   => 'Aprovado', #Aprovado ou #Reprovado
     };
     my $res = $antifraud->update_order_status( $args );
-    warn p $res;
+    is( $res->{ url } =~ m#paymentintegration.asmx/UpdateOrderStatusID#gm, 1 , 'url UpdateOrderStatusID' );
+    &validate_nodes( $res->{ content },[ qw/StatusCode Message TransactionStatus/ ] );
 }
 
 {
-    warn " getPackageStatus:";
-    my $transaction_id = '0448c07f-effc-4fa5-a9ad-571595679b46';
+    # getPackageStatus
     my $res = $antifraud->get_package_status( $transaction_id );
-    warn p $res;
+    is( $res->{ url } =~ m#service.asmx/GetPackageStatus#gm, 1, 'expected url'  );
+    &validate_nodes( $res->{ content }, [ qw/Order ID Status Score/ ] );
+    is( $res->{ content } =~ m/$pedido_num/gm, 1, ' trouxe o numero do pedido ' );
 }
 
 {
-    warn " getOrderStatus:";
+    # getOrderStatus
     my $res = $antifraud->get_order_status( $pedido_num );
-    warn p $res;
+    is( $res->{ url } =~ m#service.asmx/GetOrderStatus#gm, 1, 'expected url'  );
+    &validate_nodes( $res->{ content }, [ qw/Status Score ID/ ] );
 }
 
 {
-    warn " getOrdersStatus:";
+    # getOrdersStatus
     my $res = $antifraud->get_orders_status( [$pedido_num,$pedido_num] );
-    warn p $res;
+    is( $res->{ url } =~ m#service.asmx/GetOrdersStatus#, 1, 'expected url' );
+    &validate_nodes( $res->{ content } , [ qw/Status Score ID/ ] );
 }
 
 {
-    warn " getAnalystComments:";
+    # getAnalystComments
     my $res = $antifraud->get_analyst_comments( $pedido_num, 1 );
-    warn p $res;
 }
 
 
 done_testing;
-
-sub get_value_for {
-    my ( $form, $name ) = @_;
-    return $form->look_down( _tag => 'input', name => $name )->attr('value');
-}
